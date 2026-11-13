@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+<title>WeeWoo</title>
+<meta name="robots" content="noindex, nofollow">
+<!-- iPhone Safari cannot go full screen; added to the Home Screen, the game opens with no browser bars -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WeeWoo">
+<style>
+  /* one look: a dark arcade screen, the whole-number-scaled picture filling it edge to edge */
+  :root { --bg: #0b0a12; --ink: #f2f0ea; --dim: #a9a6bd; --line: #3d3952; --accent: #ef5a4c; --panel: #17151f; color-scheme: dark; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; touch-action: none; -webkit-text-size-adjust: 100%; background: var(--bg); color: var(--ink); overflow: hidden; }
+  body { font: 500 13px/1.4 ui-monospace, Menlo, Consolas, monospace; touch-action: none; user-select: none; -webkit-user-select: none; }
+  #stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+  .hud { position: fixed; top: max(8px, env(safe-area-inset-top, 0px)); left: max(8px, env(safe-area-inset-left, 0px)); max-width: 30%; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; pointer-events: none; } /* top left only: the road name shows top centre, the speed top right */
+  .hud button { pointer-events: auto; }
+  button { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); padding: 6px 10px; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .pad { position: fixed; bottom: max(12px, env(safe-area-inset-bottom, 0px)); display: flex; gap: 10px; }
+  .pad.left { left: max(12px, env(safe-area-inset-left, 0px)); }
+  .pad.right { right: max(12px, env(safe-area-inset-right, 0px)); }
+  .pad button { padding: 0; width: 76px; height: 76px; border-radius: 50%; background: #ffffff14; border-color: #ffffff33; font-size: 15px; touch-action: none; -webkit-tap-highlight-color: transparent; }
+  .pad button.on { background: #ffffff55; }
+  .pad button.big { width: 96px; height: 96px; }
+  #stick { width: 132px; height: 132px; border-radius: 50%; background: #ffffff14; border: 1px solid #ffffff33; display: grid; place-items: center; touch-action: none; }
+  #knob { width: 52px; height: 52px; border-radius: 50%; background: #ffffff55; pointer-events: none; }
+  #panel { position: fixed; inset: auto max(8px, env(safe-area-inset-right, 0px)) auto auto; top: 48px; max-width: min(560px, calc(100% - 16px)); background: var(--panel); border: 1px solid var(--line); padding: 10px; display: flex; flex-direction: column; gap: 8px; user-select: text; -webkit-user-select: text; }
+  #panel pre { margin: 0; white-space: pre-wrap; max-height: 50vh; overflow: auto; }
+  #panel .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  #tuning { position: fixed; top: 48px; left: max(8px, env(safe-area-inset-left, 0px)); width: min(300px, calc(100% - 16px)); max-height: calc(100% - 150px); overflow: auto; background: var(--panel); border: 1px solid var(--line); padding: 10px; display: flex; flex-direction: column; gap: 6px; touch-action: pan-y; z-index: 2; }
+  #tuning label { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; }
+  #tuning input { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+  #tuning .row { display: flex; gap: 6px; }
+  #credit { position: fixed; bottom: max(4px, env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--dim); background: #0b0a12aa; padding: 1px 6px; pointer-events: none; }
+  #loading { position: fixed; inset: 0; display: grid; place-items: center; color: var(--dim); }
+  #turn { display: none; }
+  @media (orientation: portrait) and (pointer: coarse) { #turn { display: grid; position: fixed; inset: 0; place-items: center; background: var(--bg); text-align: center; padding: 24px; z-index: 5; } }
+  /* first screen: pick a ready-made map square */
+  body.picking > :not(#picker):not(#area):not(script) { display: none !important; }
+  #picker .any { display: inline-block; margin: 0 0 4px; padding: 12px 16px; font-weight: 600; background: var(--accent); border: 0; color: #fff; }
+  /* the area picker: a full-screen map with a bar of controls on top */
+  #area { position: fixed; inset: 0; z-index: 6; background: var(--bg); }
+  #areamap { position: absolute; inset: 0; }
+  #area .areabar { position: absolute; top: max(8px, env(safe-area-inset-top, 0px)); left: max(8px, env(safe-area-inset-left, 0px)); right: max(8px, env(safe-area-inset-right, 0px)); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  #area form { flex: 1 1 160px; display: flex; }
+  #area input { flex: 1; min-width: 0; font: inherit; font-size: 16px; color: var(--ink); background: var(--panel); border: 1px solid var(--line); padding: 6px 8px; }
+  #areasizes button.on { border-color: var(--accent); color: var(--accent); }
+  #areadrive { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  #areadrive:disabled { opacity: 0.4; cursor: default; }
+  #areamsg { position: absolute; left: 50%; bottom: max(28px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); margin: 0; max-width: calc(100% - 32px); background: #0b0a12dd; padding: 6px 10px; text-align: center; pointer-events: none; }
+  #loading a { color: var(--accent); }
+  /* the lobby: the room link, names, and Start for the host, over the city while it loads */
+  #lobby { position: fixed; inset: 0; z-index: 4; display: grid; place-items: center; background: #0b0a12cc; overflow: auto; touch-action: pan-y; padding: 16px; }
+  #lobby .box { background: var(--panel); border: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: min(320px, 100%); }
+  #lobby .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  #lobby input { font: inherit; font-size: 16px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); padding: 6px 8px; width: 12em; }
+  #lobby ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+  #lobby .dim { color: var(--dim); }
+  #lobby .go { background: var(--accent); border-color: var(--accent); color: #fff; padding: 12px 16px; }
+  #lobbylink { color: var(--dim); word-break: break-all; user-select: text; -webkit-user-select: text; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  #mm { position: fixed; padding: 0; background: transparent; border: 0; touch-action: none; -webkit-tap-highlight-color: transparent; }
+  #picker { position: fixed; inset: 0; overflow: auto; touch-action: pan-y; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px)); user-select: none; }
+  #picker h1 { margin: 0 0 2px; font-size: 26px; letter-spacing: 1px; color: var(--accent); }
+  #picker > p { margin: 0 0 16px; color: var(--dim); }
+  #picker h2 { margin: 18px 0 8px; font-size: 13px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; }
+  #picker .grid { display: flex; flex-wrap: wrap; gap: 8px; max-width: 900px; } /* cards as wide as their pixel-font names */
+  #picker a.sq { display: block; padding: 14px 12px; background: var(--panel); border: 1px solid var(--line); color: var(--ink); text-decoration: none; -webkit-tap-highlight-color: transparent; }
+  #picker a.sq:hover, #picker a.sq:focus-visible { border-color: var(--accent); outline: none; }
+  #picker a.sq b { display: block; font-size: 16px; }
+  #picker a.sq span { color: var(--dim); font-size: 12px; }
+  #picker details { margin-top: 18px; color: var(--dim); }
+  #picker summary { cursor: pointer; }
+  #picker .osm { margin-top: 22px; font-size: 11px; color: var(--dim); }
+  #picker .osm a { color: var(--dim); }
+</style>
+  <script type="module" crossorigin src="/assets/index-1goVMnyd.js"></script>
+</head>
+<body>
+  <div id="stage"><canvas id="screen" data-label="screenLabel"></canvas></div>
+  <button id="mm" type="button" hidden data-label="roadMap"></button>
+  <div class="hud">
+    <button id="maps" type="button" data-text="map"></button>
+    <button id="test" type="button" data-text="speedTest"></button>
+    <button id="style" type="button"></button>
+    <button id="tune" type="button" data-text="tuning"></button>
+    <button id="full" type="button" data-text="fullScreen"></button>
+  </div>
+  <div class="pad left">
+    <button id="left" type="button" data-label="steerLeft">◀</button>
+    <button id="right" type="button" data-label="steerRight">▶</button>
+    <div id="stick" hidden data-label="stick"><div id="knob"></div></div>
+  </div>
+  <div class="pad right">
+    <button id="brake" type="button" data-label="brakeLabel" data-text="brake"></button>
+    <button id="drive" type="button" class="big" data-text="drive"></button>
+  </div>
+  <div id="panel" hidden>
+    <pre id="report"></pre>
+    <div class="row">
+      <button id="restart" type="button">Clear log</button>
+      <button id="refresh" type="button">Refresh</button>
+      <button id="copy" type="button">Copy report</button>
+    </div>
+  </div>
+  <div id="tuning" hidden></div>
+  <div id="credit" class="plain" data-text="osmCredit"></div>
+  <div id="area" hidden>
+    <div id="areamap"></div>
+    <div class="areabar">
+      <button id="areaback" type="button" data-text="back"></button>
+      <form id="areaform"><input id="areasearch" type="search" enterkeyhint="search" autocomplete="off"></form>
+      <span id="areasizes"></span>
+      <button id="areadrive" type="button" data-text="driveHere"></button>
+    </div>
+    <p id="areamsg"></p>
+  </div>
+  <div id="picker" hidden>
+    <h1 data-text="gameName"></h1>
+    <p data-text="pickSquare"></p>
+    <button id="pickany" class="any" type="button" data-text="pickAnywhere"></button>
+    <div id="launch"></div>
+    <details><summary data-text="otherSquares"></summary><div id="others"></div></details>
+    <p class="osm plain"><span data-text="mapsCredit"></span> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" data-text="osm"></a> <span data-text="contributors"></span></p>
+  </div>
+  <div id="lobby" hidden>
+    <div class="box">
+      <h2 id="lobbytitle"></h2>
+      <div class="row"><button id="share" type="button" data-text="shareLink"></button><span id="lobbylink" class="plain"></span></div>
+      <label class="row plain"><span data-text="yourName"></span><input id="nick" maxlength="16" autocomplete="off" enterkeyhint="done"></label>
+      <ul id="players" class="plain"></ul>
+      <button id="startbtn" type="button" class="go" data-text="startDriving"></button>
+      <p id="lobbywait" class="plain dim" data-text="waitHost"></p>
+    </div>
+  </div>
+  <div id="loading"></div>
+  <div id="turn" class="plain" data-text="turnPhone"></div>
+</body>
+</html>

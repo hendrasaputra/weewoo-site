@@ -1,0 +1,32 @@
+WeeWoo proprietary licence
+
+Copyright (c) 2026 Hendra Saputra. All rights reserved.
+
+1. Ownership. WeeWoo is proprietary software owned by Hendra Saputra. This
+   includes its source code, built files, generated art, sounds, map styling,
+   game design and documentation (together, "the Software").
+
+2. No licence by default. No one may use, copy, modify, merge, publish,
+   distribute, sublicense, host, sell, decompile or make derivative works of
+   the Software or any part of it, in source or built form, without prior
+   written permission from Hendra Saputra.
+
+3. Playing is allowed. You may play the published game in a web browser at an
+   address run by Hendra Saputra, such as https://weewoo.hensap.id. This does
+   not let you copy, host, mirror, embed or redistribute the game.
+
+4. Public copies grant nothing. Seeing the Software in a public place, such as
+   a public repository or the files a web browser downloads, does not grant
+   any licence.
+
+5. Third-party parts keep their own licences.
+   - Map data © OpenStreetMap contributors, under the Open Database License
+     (ODbL).
+   - Open-source packages listed in package-lock.json, under their own
+     licences.
+
+6. No warranty. The Software is provided "as is", without warranty of any
+   kind. Hendra Saputra is not liable for any claim, damage or loss arising
+   from its use, to the extent the law allows.
+
+For permission or questions, contact Hendra Saputra at hendrasaputra@gmail.com.
